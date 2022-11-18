@@ -1,0 +1,295 @@
+---
+title: "Project 2"
+author: "Ibrahim Noman"
+date: "2022-11-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# **Loading Packages**
+```{r}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+```
+
+# **Data Obtainment and Processing**
+
+I obtained the household power consumption data set through kaggle. I downloaded it as a zip folder and then extracted it into my working directory. This data set contains 26,040 observations and 10 variables. I read the data set through the read.csv function, and named it power.consumption. For more information on the data set visit (https://www.kaggle.com/datasets/uciml/electric-power-consumption-data-set)
+
+```{r}
+power.consumption <- read.csv("household_power_consumption.csv")
+```
+
+## **Data Description**
+
+This data set contains almost 4 years worth of data. It starts from December 2006 to November 2010. It's also important to note that the website doesn't provide any information on the missing data in the data set. So, the missing data was removed.
+
+```{r}
+power.consumption.clean <- filter(power.consumption, power.consumption$Global_active_power !="?" ) 
+```
+
+
+## **The Variables**
+
+The 10 variables are: 
+
+index : the number of houses observed, in this case 260,640
+
+Date : date of observation
+
+Time : time of observation
+
+Global_active_power : household global minute-averaged power (kilowatt)
+
+Global_reactive_power : household global minute-averaged reactive power (kilowatt)
+voltage: minute-averaged voltage (in volt)
+
+Global_intensity: household global minute-averaged current intensity (in ampere)
+
+Sub_metering_1: energy sub-metering No. 1 (in watt-hour of active energy). It corresponds to the kitchen, containing mainly a dishwasher, an oven and a microwave (hot plates are not electric but gas powered)
+
+Sub_metering_2: energy sub-metering No. 2 (in watt-hour of active energy). It corresponds to the laundry room, containing a washing-machine, a tumble-drier, a refrigerator and a light.
+
+Sub_metering_3: energy sub-metering No. 3 (in watt-hour of active energy). It corresponds to an electric water-heater and an air-conditioner.
+
+
+# **Purpose**
+
+I picked this data set to understand and analyze what factors affect a high electricity bill. My main goal is to understand the relationship between Global Intensity and the Voltage. The specific variables I will be investigating will be:
+Sub-Metering 1
+
+Sub-Metering 2
+
+Sub-Metering 3
+
+Voltage 
+
+Global Intensity
+
+```{r}
+table.2 <- tibble(Variable = c("Voltage", "Global Intensity", "Sub-Metering 1", "Sub-Metering 2", "Sub-Metering 3"), Type = c("Numeric", "Numeric", "Numeric", "Numeric", "Numeric"), Content = c("Difference in electric potential between 2 points", "Ratio of global total energy supply per unit of gross domestic product", "Sub-Metering for Kitchen", "Sub-Metering for Laundry Room", "Sub-Metering for ac/heater"), MissingValues = c("See Data Description", "See Data Description", "See Data Description", "See Data Description", "See Data Description"))
+table.2
+```   
+
+
+# **Relationship between the Global Intensity and Voltage**
+
+## **Global Intensity**
+
+The Global Intensity is the percentage decrease in the ratio of global total energy supply per unit of gross domestic product (GDP). In other words, it tells us how much intensity the electricity has. For example, Gamma rays have the highest intensity. For more information visit: (https://www.iea.org/reports/sdg7-data-and-projections/energy-intensity)  
+
+```{r}
+power.consumption.clean$Global_intensity = as.numeric(power.consumption.clean$Global_intensity)
+ggplot(data=power.consumption.clean) +
+  geom_histogram(aes(x=Global_intensity), binwidth = 3,
+                 fill="blue") +
+    labs(title = "Distribution of the Global Intensity", y= "Amount", x= "Global Intensity")
+```
+
+## **Voltage**
+
+Voltage is the pressure of electricity. Below is the distribution of voltage across the different households. This is important for this project because later in the project I will use this distribution to determine how many households are either below or above the average voltage.
+
+```{r}
+power.consumption.clean$Voltage = as.numeric(power.consumption.clean$Voltage)
+ggplot(data=power.consumption.clean) +
+  geom_histogram(aes(x=Voltage),
+                 fill="red") +
+    labs(title = "Distribution of Voltage", y= "Amount", x= "Voltage")
+```
+  
+
+##**Voltage vs. Global Intensity**
+
+The relationship between Voltage and Global Intensity is indirect. This means that people who receive energy with high intensity, they use less of it. This makes sense because more intense energy would also cost a lot more, and it is dangerous. Some examples of intense energy would be x-rays or gamma radiation.       
+
+```{r}
+ggplot(power.consumption.clean) +
+  geom_point(aes(x = Voltage, y = Global_intensity,)) +
+  labs(x = "Voltage", y = "Global Intensity", title = "Voltage Vs. Global Intensity") + theme_classic()
+```
+
+
+# **Creation of New Variables**
+
+```{r}
+table.3 <- tibble(Variable = c("Voltage Quality", "Quality of Global Intensity", "Total Sub-metering"), Type = c("Categorical", "Categorical", "Numeric"), Content = c("Comparison to the national average", "Comparison to the average", "The sum of the 3 Sub-metering"), MissingValues = c("N/A", "N/A", "N/A"), Derivation = "National Average is 240", "Relation to Average Global Intensity", "Added the 3 sub-metering variables")
+table.3
+```
+
+
+# **Voltage Quality**
+
+I created the variable voltage quality to understand what type of voltage each household receives. The average voltage per household in the U.S is 240 according to (https://www.warreninspect.com/determining-capacity-residential-electric-service). The Voltage_quality variable describes whether each house's voltage is either high or lower than the national average.
+
+I used the mutate function to create another column which indicates whether the voltage is high or low compared to the national average.
+
+```{r}
+power.consumption.2 <- power.consumption.clean %>%
+  mutate(Voltage_quality = case_when(Voltage >= 240 ~ "high",
+                                     Voltage < 240 ~ "low",)) 
+```
+
+### **Distribution of the Voltage Quality**
+
+Below is the graph of the distribution of the voltage quality. As you can see, the majority of house holds have voltage quality below the national average. This also means that much of the electricity isn't being used to power large objects. 
+
+```{r}
+library(ggplot2)
+ggplot(data = power.consumption.2, aes(x = Voltage_quality, fill = Voltage_quality)) +
+  geom_bar() +
+  labs(title = "Distribution of the Voltage Quality", x = "Voltage Quality", y = "Amount", fill = "Legend")
+  scale_fill_manual(values=c("#999999", "#E69F00"))
+```
+
+
+## **The Quality of Global Intensity**
+
+It is important to find the quality of global intensity because we have to find out if people are exposed to dangerous levels of intensity.   
+
+First to find the average global intensity I created a function which calculated the mean.
+
+```{r}
+the.mean <- function(x){
+  x.num <- as.numeric(x)
+  the.sum <- sum(x.num)
+  the.length <- length(x.num)
+  return(the.sum/the.length)
+}
+x <- (power.consumption.2$Global_intensity)
+the.mean(x)
+```
+
+Then I created a function that classifies the global intensity as above average or below average. Lastly, I applied the function to my data set.
+
+```{r}
+the.quality <- function(x){
+ if (as.numeric(x) < 4.97) return("Below Average")
+    else return("Above Average" )
+}
+
+power.consumption.2$Global_intensity_Quality = sapply(power.consumption.2$Global_intensity, the.quality)
+
+```
+
+### **Distribution of the Quality of Global Intensity**
+
+The plot below shows the distribution for the Global Intensity. We can see that people tend to have a global intensity that is below the average.
+
+```{r}
+ggplot(data = power.consumption.2, aes(x = Global_intensity_Quality, fill = Global_intensity_Quality)) +
+  geom_bar() +
+  labs(title = "Distribution of the Quality of Global Intensity", x = "Quality of Global Intensity", y = "Amount", fill = "Legend") +
+  scale_fill_manual(values=c("yellow", "orange"))
+```
+
+## **Total Sub-metering**
+
+Sub-metering is a system that allows that makes it easy to bill the tenants of the house. This data set distributes sub-metering into 3 different sections. For more information look at the variables section of this file. 
+
+I am creating a Total Sub-metering function to see how much in total is each household contributing to electricity usage. 
+
+```{r}
+power.consumption.3 <- power.consumption.2 %>%
+  mutate(Total_Sub_metering = as.numeric(Sub_metering_1) + as.numeric(Sub_metering_2) + as.numeric(Sub_metering_3))
+```
+
+
+### **Distribution of the Total Sub-metering**
+
+The graph below shows that the as the sub-metering increases, the amount decreases. This graph can be misleading because in general sub-metering is very low. However, this graph raises another issue that the cost for electricity is very high. 
+
+```{r}
+power.consumption.3$Total_Sub_metering = as.numeric(power.consumption.3$Total_Sub_metering)
+ggplot(data=power.consumption.3) +
+  geom_histogram(aes(x=Total_Sub_metering), binwidth = 25,
+                 fill="green") +
+    labs(title = "Distribution of the Total Sub-metering", y= "Amount", x= "Total Sub-metering")
+```
+
+
+# **Visual Comparisons**
+
+## **Comparison between the Voltage and the Voltage Quality**
+
+Below I tried to find out whether there is a relationship between the Voltage and the Quality of Voltage. The distribution below tells us that people that tend to have a better quality of voltage have a higher voltage.It's also important to note that there are a lot more people who have lower quality voltage. 
+
+```{r}
+ggplot(data=power.consumption.3) +
+  geom_boxplot(mapping=aes(x=Voltage, 
+                           y=Voltage_quality, fill=Voltage_quality,),alpha=.25,) +
+  labs(title= "Quality Vs. Voltage", x= "Voltage", y= "Quality", fill="Quality")
+```
+
+
+## **Global Intensity vs. Quality of Global Intensity**
+
+The relationship below shows that most people have Global Intensity that is above average. This is alarming because this proves that people are now using more high intense electricity than the average.
+
+```{r}
+ggplot(data=power.consumption.3) +
+  geom_boxplot(mapping=aes(x=Global_intensity, 
+                           y=Global_intensity_Quality, fill=Global_intensity_Quality,), alpha = .25,) +
+  labs(title= "Quality Vs. Global Intensity", x= "Global Intensity", y= "Quality", fill="Quality")
+```
+
+
+## **Quality of the Global Intensity vs. Voltage**
+
+The graph below tells us that when households have a high voltage, their intensity goes down. Similarly, when the voltage goes down, the intensity goes up. This is interesting because it proves that people are more dependent on every day items than ever before. 
+
+```{r}
+ggplot(data=power.consumption.3) +
+  geom_boxplot(mapping=aes(x=Voltage, 
+                           y=Global_intensity_Quality, fill=Global_intensity_Quality,), alpha = .25,) +
+  labs(title= "Voltage vs. Quality of Intensity", x= "Voltage", y= " Intensity Quality", fill="Quality")
+```
+
+
+## **Quality of Voltage vs. Global Intensity**
+
+The relationship between the Quality of Voltage is very interesting. As the quality of voltage increases, the global intensity decreases. This shows that people tend to use electricity which is not as powerful. 
+
+```{r}
+ggplot(data=power.consumption.3) +
+  geom_boxplot(mapping=aes(x=Global_intensity, 
+                           y=Voltage_quality, fill=Voltage_quality,), alpha = .25,) +
+  labs(title= "Voltage Quality vs. Global Intensity", x= "Global Intensity", y= "Voltage Quality", fill="Quality")
+
+```
+
+# **For Loop/Debugging**
+
+For this project a for loop was not efficient. The reason for this was because this data set had a lot of observations. Earlier when I was trying to calculate the quality of global intensity, I tried using the for loop code below, but it was taking longer than using the sapply function. As a result, I decided not to use it.
+
+m = length(power.consumption.2$Global_intensity)
+power.consumption.2$Global_intensity_Quality = c()
+for(i in 1:m){
+  if (as.numeric(power.consumption.2$Global_intensity)[i] < 4.97) power.consumption.2$Global_intensity_Quality[i] = "Below Average"
+    else  power.consumption.2$Global_intensity_Quality[i] = "Above Average" 
+    print(i)
+}
+
+# **Conclusion**
+
+In this project I found out that there is a indirect relationship between Global Intensity and Voltage. This relationship was displayed throughout the project especially when I compared the quality of both of these variables to the numeric variables. The good things that we found out were that not many people using dangerous levels of electricity. Now this may not be accurate to today's world considering this data set is more than 10 years old. I also found out the amount and cost relationship between sub-metering. In the graph I created in the Total sub-metering section, showed that once Total Sub-metering increased the amount decreased. In other words, as we increase the cost of electricity the usage goes down. This is a potential solution to reduce the usage of electricity. Speaking of usage, it is also important to note that humans are more dependent on electricity more than ever. I found this when I compared the Quality of Global Intensity to the Voltage 
+
+
+## **References**
+
+https://www.kaggle.com/datasets/uciml/electric-power-consumption-data-set
+
+https://www.iea.org/reports/sdg7-data-and-projections/energy-intensity
+
+https://www.warreninspect.com/determining-capacity-residential-electric-service
+
+# **Github link**
+
+https://github.com/Ibrahim581/SDS-Project-2---Data-Visualization
+
+
+
